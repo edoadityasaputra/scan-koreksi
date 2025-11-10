@@ -32,37 +32,74 @@ inputGambar.addEventListener("change", async (e) => {
 });
 
 async function deteksiJawaban(img) {
-  // Tunggu OpenCV siap
   if (typeof cv === "undefined") {
     alert("OpenCV belum siap, tunggu beberapa detik dan coba lagi.");
     return [];
   }
 
-  // Konversi gambar ke OpenCV Mat
+  // Konversi ke Mat
   let src = cv.imread(img);
   let gray = new cv.Mat();
   cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
 
-  // Threshold (hitam putih)
+  // Blur + threshold untuk pisahkan lingkaran hitam
+  let blur = new cv.Mat();
+  cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0);
   let binary = new cv.Mat();
-  cv.threshold(gray, binary, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU);
+  cv.threshold(blur, binary, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU);
 
-  // (Simulasi sementara)
-  // Nanti kamu bisa isi posisi lingkaran sesuai LJK PDF
-  // Misal array posisi koordinat tiap lingkaran
-  const totalSoal = 25;
-  let hasil = [];
+  const width = binary.cols;
+  const height = binary.rows;
 
-  for (let i = 1; i <= totalSoal; i++) {
-    const random = ["A", "B", "C", "D"][Math.floor(Math.random() * 4)];
-    hasil.push(random);
+  // Daftar posisi lingkaran relatif (%)
+  const kolom = [
+    { start: 0.15, soal: [1, 10] },   // kolom kiri
+    { start: 0.47, soal: [11, 20] },  // kolom tengah
+    { start: 0.78, soal: [21, 25] }   // kolom kanan
+  ];
+
+  const hasil = [];
+  let nomorSoal = 1;
+
+  for (let k of kolom) {
+    const totalSoal = k.soal[1] - k.soal[0] + 1;
+    for (let i = 0; i < totalSoal; i++) {
+      // Hitung posisi Y
+      const yPersen = 0.15 + i * 0.03; // jarak antar baris
+      const y = Math.floor(yPersen * height);
+
+      // Set posisi X setiap pilihan A–D (spasi antar lingkaran)
+      const baseX = Math.floor(k.start * width);
+      const step = Math.floor(width * 0.03);
+      const options = ["A", "B", "C", "D"];
+
+      let nilaiHitam = [];
+
+      for (let j = 0; j < 4; j++) {
+        const x = baseX + j * step;
+        const w = 20;  // area sekitar lingkaran
+        const h = 20;
+        const rect = new cv.Rect(x - w / 2, y - h / 2, w, h);
+        const roi = binary.roi(rect);
+        const jumlahHitam = cv.countNonZero(roi);
+        nilaiHitam.push(jumlahHitam);
+        roi.delete();
+      }
+
+      // Pilih lingkaran paling hitam (jawaban siswa)
+      const indexJawaban = nilaiHitam.indexOf(Math.max(...nilaiHitam));
+      hasil.push(options[indexJawaban]);
+
+      nomorSoal++;
+    }
   }
 
-  // Bersihkan memory
-  src.delete(); gray.delete(); binary.delete();
+  // Bersihkan memori
+  src.delete(); gray.delete(); blur.delete(); binary.delete();
 
   return hasil;
 }
+
 
 function tampilkanHasil(nama, jawaban) {
   document.getElementById("outputNama").innerText = `Nama: ${nama}`;
