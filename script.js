@@ -16,19 +16,53 @@ inputGambar.addEventListener("change", async (e) => {
 
   const nama = document.getElementById("nama").value.trim();
   const kelas = document.getElementById("kelas").value;
-
   if (!nama || !kelas) {
-    alert("Isi nama dan pilih kelas dulu ya!");
+    alert("Isi nama dan kelas dulu ya!");
     return;
   }
 
-  // Simulasi hasil scan (nanti diganti dengan deteksi otomatis)
-  const hasilJawaban = ["A","C","B","D","A","C","A","B","C","D","A","A","D","B","C","A","D","C","B","B","A","C","D","A","B"];
-  tampilkanHasil(nama, hasilJawaban);
-
-  // Otomatis aktifkan tombol kirim
-  btnKirim.disabled = false;
+  // Konversi gambar ke elemen Image
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+  img.onload = async () => {
+    const hasilJawaban = await deteksiJawaban(img);
+    tampilkanHasil(nama, hasilJawaban);
+    btnKirim.disabled = false;
+  };
 });
+
+async function deteksiJawaban(img) {
+  // Tunggu OpenCV siap
+  if (typeof cv === "undefined") {
+    alert("OpenCV belum siap, tunggu beberapa detik dan coba lagi.");
+    return [];
+  }
+
+  // Konversi gambar ke OpenCV Mat
+  let src = cv.imread(img);
+  let gray = new cv.Mat();
+  cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+
+  // Threshold (hitam putih)
+  let binary = new cv.Mat();
+  cv.threshold(gray, binary, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU);
+
+  // (Simulasi sementara)
+  // Nanti kamu bisa isi posisi lingkaran sesuai LJK PDF
+  // Misal array posisi koordinat tiap lingkaran
+  const totalSoal = 25;
+  let hasil = [];
+
+  for (let i = 1; i <= totalSoal; i++) {
+    const random = ["A", "B", "C", "D"][Math.floor(Math.random() * 4)];
+    hasil.push(random);
+  }
+
+  // Bersihkan memory
+  src.delete(); gray.delete(); binary.delete();
+
+  return hasil;
+}
 
 function tampilkanHasil(nama, jawaban) {
   document.getElementById("outputNama").innerText = `Nama: ${nama}`;
@@ -57,4 +91,3 @@ btnKirim.addEventListener("click", async () => {
     alert("⚠️ Error: " + err.message);
   }
 });
-
