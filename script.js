@@ -1,52 +1,60 @@
+
+
+// Ganti dengan URL Web Apps kamu dari Google Apps Script
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyENJTaix67MsXComxdj1XxHww0j7CGT5iKiZDcQo9lj6XWWv7g5P7OVXZ5bd_YDAbd/exec";
 
-document.getElementById("prosesBtn").addEventListener("click", async () => {
-  const kelas = document.getElementById("kelas").value;
-  const nama = document.getElementById("nama").value;
-  const file = document.getElementById("scan").files[0];
+const btnFoto = document.getElementById("ambilFoto");
+const inputGambar = document.getElementById("inputGambar");
+const hasilDiv = document.getElementById("hasilScan");
+const btnKirim = document.getElementById("kirimGAS");
 
-  if (!file) {
-    alert("Pilih foto LJK terlebih dahulu!");
+btnFoto.addEventListener("click", () => inputGambar.click());
+
+inputGambar.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const nama = document.getElementById("nama").value.trim();
+  const kelas = document.getElementById("kelas").value;
+
+  if (!nama || !kelas) {
+    alert("Isi nama dan pilih kelas dulu ya!");
     return;
   }
 
-  document.getElementById("jawabanHasil").innerText = "Sedang memproses...";
+  // Simulasi hasil scan (nanti diganti dengan deteksi otomatis)
+  const hasilJawaban = ["A","C","B","D","A","C","A","B","C","D","A","A","D","B","C","A","D","C","B","B","A","C","D","A","B"];
+  tampilkanHasil(nama, hasilJawaban);
 
-  // Jalankan OCR
-  const result = await Tesseract.recognize(file, "eng", {
-    logger: info => console.log(info),
-  });
-
-  let teks = result.data.text;
-  console.log("Hasil OCR:", teks);
-
-  // Contoh deteksi sederhana (kamu bisa modifikasi nanti)
-  // misal hasil OCR "A D B D" → kita ubah jadi array ["a","d","b","d"]
-  let jawaban = teks
-    .replace(/[^A-Da-d]/g, " ") // hapus karakter selain A-D
-    .trim()
-    .split(/\s+/)
-    .map(h => h.toLowerCase());
-
-  // Tampilkan hasil
-  document.getElementById("namaHasil").innerText = nama;
-  document.getElementById("jawabanHasil").innerText = jawaban.join(", ");
-
-  // Kirim ke GAS
-  fetch(GAS_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      nama: `${kelas} - ${nama}`,
-      hasil: jawaban
-    }),
-  })
-    .then(res => res.text())
-    .then(msg => {
-      alert("✅ Data berhasil dikirim!\n" + msg);
-    })
-    .catch(err => {
-      alert("❌ Gagal mengirim ke Google Sheets");
-      console.error(err);
-    });
+  // Otomatis aktifkan tombol kirim
+  btnKirim.disabled = false;
 });
+
+function tampilkanHasil(nama, jawaban) {
+  document.getElementById("outputNama").innerText = `Nama: ${nama}`;
+  document.getElementById("outputJawaban").innerText = `Jawaban: ${jawaban.join(", ")}`;
+  hasilDiv.style.display = "block";
+}
+
+// Kirim ke GAS
+btnKirim.addEventListener("click", async () => {
+  const nama = document.getElementById("nama").value;
+  const jawaban = document.getElementById("outputJawaban").innerText.replace("Jawaban: ", "");
+
+  try {
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nama, jawaban })
+    });
+
+    if (res.ok) {
+      alert("✅ Data berhasil dikirim ke Google Sheet!");
+    } else {
+      alert("❌ Gagal kirim data. Cek koneksi atau URL GAS kamu.");
+    }
+  } catch (err) {
+    alert("⚠️ Error: " + err.message);
+  }
+});
+
